@@ -29,7 +29,7 @@ class Model {
    * values are the current values to be matched.
    * @returns {Promise<Array>} A promise that is fulfilled with an array of objects
    * matching the conditions or is rejected with the the error that occurred during
-   * the query.
+   * the query
    */
   getAll(options) {
     if (!options) {
