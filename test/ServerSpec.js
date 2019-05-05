@@ -480,7 +480,7 @@ describe('', function() {
     });
   });
 
-  xdescribe('Sessions and cookies', function() {
+  describe('Sessions and cookies', function() {
     var requestWithSession;
     var cookieJar;
 
@@ -557,8 +557,9 @@ describe('', function() {
 
           var cookies = cookieJar.getCookies('http://127.0.0.1:4568/');
           var newCookieValue = cookies[0].value;
-          expect(cookieValue).to.not.equal(newCookieValue);
 
+          expect(cookieValue).to.not.equal(newCookieValue);
+          
           var queryString = 'SELECT * FROM sessions WHERE hash = ?';
           db.query(queryString, cookieValue, function(error2, sessions) {
             if (error2) { return done(error2); }

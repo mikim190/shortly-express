@@ -4,16 +4,21 @@ const utils = require('./lib/hashUtils');
 const partials = require('express-partials');
 const bodyParser = require('body-parser');
 const Auth = require('./middleware/auth');
+const CookieParser = require('./middleware/cookieParser')
 const models = require('./models');
 
 const app = express();
 
 app.set('views', `${__dirname}/views`);
 app.set('view engine', 'ejs');
+
 app.use(partials());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
+// add in our own middle wares
+app.use(CookieParser);
+app.use(Auth.createSession);
 
 
 
@@ -86,14 +91,24 @@ app.post('/signup',
 
     return models.Users.get({ username: req.body.username })
       .then(result => {
-        if (result) {
-          res.redirect(409, '/signup');
+        if (!result) {
+          return models.Users.create(options); //if username does not exist, create and insert it, returns an object of insert details
         }
-        return models.Users.create(options);
+        // if username exists, do nothing --> returns undefined
       })
       .then(result => {
-        res.redirect(200, '/');
-      });
+        if (result) {
+          return models.Sessions.update({ hash: req.session.hash }, { userId: result.insertId })
+        }
+      })
+      .then(result => {
+        if (result) {
+          res.redirect(200, '/'); // code only flows here if username is inserted (something is returned)
+        } else {
+          res.redirect(409, '/signup') // code flows here if undefined is returned
+        }
+      })
+      .catch(error => console.log('error is', error));
 
   });
 
@@ -103,19 +118,31 @@ app.post('/login',
     return models.Users.get({ username: req.body.username })
       .then(result => {
         if (result) {
-          return models.Users.compare(req.body.password, result.password, result.salt); 
+          return models.Users.compare(req.body.password, result.password, result.salt); // if username exists, compare and return boolean
         }
-        res.redirect(403, '/login');
+        // if username does not exist, do nothing and return undefined
       })
       .then(result => {
         if (result) {
-          res.redirect('/');
+          res.redirect('/'); // if boolean is true (password is correct), redirect to correct page
+        } else {
+          res.redirect(403, '/login'); // if boolean  is false (password is wrong) or undefined is returned, redirect back to login page
         }
-        res.redirect(403, '/login');
-      });
-     
+      }).catch(error => console.log('error is', error));
   });
 
+app.get('/logout',
+  (req, res, next) => {
+    return models.Sessions.delete({ hash: req.session.hash })
+      .then(result => {
+        if (result) {
+          res.clearCookie('shortlyid', req.session.hash);
+          res.redirect('/');
+        }
+      })
+      .catch(error => console.log('error logging out is', error));
+  }
+);
 
 
 /************************************************************/
